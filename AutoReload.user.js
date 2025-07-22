@@ -2,10 +2,10 @@
 // @name        Auto Reload Random
 // @description Reload pages every X to 2X minutes
 // @author      githuba
-// @namespace   https://github.com/githuba/userscripts
-// @supportURL  https://github.com/githuba/userscripts/issues
+// @namespace   https://github.com/githuba/userscripts_me
+// @supportURL  https://github.com/githuba/userscripts_me/issues
 // @version     3.6
-// @downloadURL https://raw.githubusercontent.com/githuba/userscripts/master/AutoReload.user.js
+// @downloadURL https://raw.githubusercontent.com/githuba/userscripts_me/master/AutoReload.user.js
 // @include     https://*.tgfcer.com/*
 // @include     http://bbs.weibufengge.com/forum.php?mod=forumdisplay*
 // @include     http://bbs.weibufengge.com:88/forum.php?mod=forumdisplay*
