@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Reload Random Enhanced
 // @namespace    https://github.com/githuba/userscripts_me
-// @version      4.1
+// @version      4.2
 // @description  Smart random auto reload with human-like behavior
 // @author       githuba
 // @run-at       document-end
@@ -25,65 +25,133 @@
 // ==/UserScript==
 
 (function () {
+
     'use strict';
 
-    // ===== Config =====
+    // =====================================================
+    // CONFIG
+    // =====================================================
 
-    // 基础刷新时间（分钟）
-    const MIN_MINUTES = 2;
-    const MAX_MINUTES = 5;
+    const CONFIG = {
 
-    // 页面失焦时额外增加随机延迟
-    const BACKGROUND_EXTRA_DELAY = 2;
+        // 基础刷新时间
+        minMinutes: 2,
+        maxMinutes: 5,
 
-    // 是否输出日志
-    const DEBUG = true;
+        // 后台标签页增加延迟
+        hiddenExtraMinutes: 2,
 
-    // ===== Utils =====
+        // 重试时间
+        retryMinSeconds: 30,
+        retryMaxSeconds: 90,
+
+        // 抖动（秒）
+        jitterSeconds: 20,
+
+        // 是否输出日志
+        debug: true,
+
+        // 夜间随机休眠
+        enableNightPause: true
+    };
+
+    // =====================================================
+    // LOG
+    // =====================================================
 
     function log(...args) {
-        if (DEBUG) {
-            console.log('[AutoReload]', ...args);
+
+        if (CONFIG.debug) {
+
+            console.log(
+                '[AutoReload]',
+                ...args
+            );
         }
     }
 
-    function randomInt(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
+    // =====================================================
+    // RANDOM
+    // =====================================================
 
-    function randomFloat(min, max) {
+    function rand(min, max) {
+
         return Math.random() * (max - min) + min;
     }
 
-    // ===== Human-like Random =====
+    function randInt(min, max) {
+
+        return Math.floor(rand(min, max + 1));
+    }
+
+    // =====================================================
+    // HUMAN DELAY
+    // =====================================================
 
     function getReloadDelay() {
 
-        let minutes = randomFloat(MIN_MINUTES, MAX_MINUTES);
+        let minutes = rand(
+            CONFIG.minMinutes,
+            CONFIG.maxMinutes
+        );
 
-        // 页面不活跃时，增加随机性
+        // 后台页面增加延迟
         if (document.hidden) {
-            minutes += randomFloat(0, BACKGROUND_EXTRA_DELAY);
+
+            minutes += rand(
+                0,
+                CONFIG.hiddenExtraMinutes
+            );
         }
 
-        // 随机抖动（±15秒）
-        const jitter = randomInt(-15, 15);
+        // 夜间随机长暂停
+        if (CONFIG.enableNightPause) {
 
-        return (minutes * 60 + jitter) * 1000;
+            const hour = new Date().getHours();
+
+            if (hour >= 2 && hour <= 7) {
+
+                if (Math.random() < 0.35) {
+
+                    const extra = rand(15, 60);
+
+                    log(
+                        `Night pause +${extra.toFixed(1)} min`
+                    );
+
+                    minutes += extra;
+                }
+            }
+        }
+
+        // 抖动
+        const jitter = randInt(
+            -CONFIG.jitterSeconds,
+            CONFIG.jitterSeconds
+        );
+
+        return (
+            minutes * 60 + jitter
+        ) * 1000;
     }
 
-    // ===== Safety =====
+    // =====================================================
+    // SAFETY
+    // =====================================================
 
     function shouldReload() {
 
-        // 网络断开不刷新
+        // 网络断开
         if (!navigator.onLine) {
-            log('Offline, skip reload');
+
+            log('Offline');
+
             return false;
         }
 
-        // 页面正在输入时不刷新
+        // 用户正在输入
         const active = document.activeElement;
+
         if (
             active &&
             (
@@ -92,44 +160,95 @@
                 active.isContentEditable
             )
         ) {
-            log('User typing, postpone reload');
+
+            log('User typing');
+
             return false;
         }
 
         return true;
     }
 
-    // ===== Main =====
+    // =====================================================
+    // RELOAD
+    // =====================================================
+
+    function reloadPage() {
+
+        // 更像真人行为的小延迟
+        const wait = randInt(1000, 8000);
+
+        log(`Reload after ${wait / 1000}s`);
+
+        setTimeout(() => {
+
+            // 某些站点缓存 aggressive
+            // 加时间戳避免假刷新
+
+            const url = new URL(location.href);
+
+            url.searchParams.set(
+                '_',
+                Date.now().toString()
+            );
+
+            log('Reloading...');
+
+            location.href = url.toString();
+
+        }, wait);
+    }
+
+    // =====================================================
+    // MAIN
+    // =====================================================
 
     function scheduleReload() {
 
         const delay = getReloadDelay();
 
-        log(`Next reload in ${(delay / 1000 / 60).toFixed(2)} minutes`);
+        log(
+            `Next reload in ${(delay / 60000).toFixed(2)} min`
+        );
 
         setTimeout(() => {
 
             if (!shouldReload()) {
 
-                // 推迟30~90秒再检查
-                const retry = randomInt(30, 90) * 1000;
+                const retry = randInt(
+                    CONFIG.retryMinSeconds,
+                    CONFIG.retryMaxSeconds
+                ) * 1000;
 
-                log(`Retry after ${retry / 1000}s`);
+                log(
+                    `Retry after ${retry / 1000}s`
+                );
 
+                // 这里只重新调度一次
                 setTimeout(scheduleReload, retry);
 
                 return;
             }
 
-            log('Reloading page...');
+            reloadPage();
 
-            // 比 reload() 更干净
-            location.replace(location.href);
+            // 下一轮
+            scheduleReload();
 
         }, delay);
     }
 
-    // 启动
-    scheduleReload();
+    // =====================================================
+    // START
+    // =====================================================
+
+    // 初始随机等待
+    const startupDelay = randInt(5, 30) * 1000;
+
+    log(
+        `Startup after ${startupDelay / 1000}s`
+    );
+
+    setTimeout(scheduleReload, startupDelay);
 
 })();
