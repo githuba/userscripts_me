@@ -7,20 +7,22 @@
 // @run-at       document-end
 
 // ===== Sites =====
-/* @include     https://*.tgfcer.com/* */
-/* @include     http://bbs.weibufengge.com/forum.php?mod=forumdisplay* */
-/* @include     http://bbs.weibufengge.com:88/forum.php?mod=forumdisplay* */
-/* @include     http://bbs.weibufengge.com/forum.php?mod=guide* */
-/* @include     http://bbs.weibufengge.com:88/forum.php?mod=guide* */
-/* @include     https://keylol.com/forum.php?mod=forumdisplay* */
-/* @include     https://keylol.com/forum.php?mod=guide* */
-/* @include     https://na.alienwarearena.com/* */
-/* @include     https://www.steamgifts.com/* */
-/* @include     https://www.hi-pda.com/forum/forumdisplay.php?* */
-/* @include     https://www.hostloc.com/forum.php?mod=forumdisplay&fid=45&filter=author&orderby=dateline* */
-/* @include     https://pt.m-team.cc/browse* */
-/* @include     https://pt.m-team.cc/browse/adult* */
-/* @include     https://karagarga.in/browse.php?* */
+// @match        https://*.tgfcer.com/*
+// @match        http://bbs.weibufengge.com/forum.php?mod=forumdisplay*
+// @match        http://bbs.weibufengge.com:88/forum.php?mod=forumdisplay*
+// @match        http://bbs.weibufengge.com/forum.php?mod=guide*
+// @match        http://bbs.weibufengge.com:88/forum.php?mod=guide*
+// @match        https://keylol.com/forum.php?mod=forumdisplay*
+// @match        https://keylol.com/forum.php?mod=guide*
+// @match        https://na.alienwarearena.com/*
+// @match        https://www.steamgifts.com/*
+// @match        https://www.hi-pda.com/forum/forumdisplay.php?*
+// @match        https://www.hostloc.com/forum.php?mod=forumdisplay&fid=45&filter=author&orderby=dateline*
+// @match        https://pt.m-team.cc/browse*
+// @match        https://pt.m-team.cc/browse/adult*
+// @match        https://karagarga.in/browse.php?*
+
+// @grant        none
 
 // ==/UserScript==
 
@@ -34,40 +36,57 @@
 
     const CONFIG = {
 
-        // 基础刷新时间
+        // 基础刷新时间（分钟）
         minMinutes: 2,
         maxMinutes: 5,
 
-        // 后台标签页增加延迟
+        // 页面隐藏时额外延迟（分钟）
         hiddenExtraMinutes: 2,
 
-        // 重试时间
+        // 重试等待（秒）
         retryMinSeconds: 30,
         retryMaxSeconds: 90,
 
-        // 抖动（秒）
+        // 时间抖动（秒）
         jitterSeconds: 20,
 
         // 是否输出日志
         debug: true,
 
-        // 夜间随机休眠
-        enableNightPause: true
+        // 夜间随机暂停
+        enableNightPause: true,
+
+        // 启动随机延迟
+        startupMinSeconds: 5,
+        startupMaxSeconds: 30,
+
+        // 刷新前随机等待
+        reloadWaitMinSeconds: 1,
+        reloadWaitMaxSeconds: 8,
+
+        // 是否启用随机滚动
+        enableRandomScroll: true,
+
+        // 滚动概率
+        scrollChance: 0.35,
+
+        // 滚动检测间隔（秒）
+        scrollCheckMinSeconds: 60,
+        scrollCheckMaxSeconds: 180,
     };
 
     // =====================================================
-    // LOG
+    // LOGGER
     // =====================================================
 
     function log(...args) {
 
-        if (CONFIG.debug) {
+        if (!CONFIG.debug) return;
 
-            console.log(
-                '[AutoReload]',
-                ...args
-            );
-        }
+        console.log(
+            '[AutoReload]',
+            ...args
+        );
     }
 
     // =====================================================
@@ -85,7 +104,7 @@
     }
 
     // =====================================================
-    // HUMAN DELAY
+    // HUMAN-LIKE DELAY
     // =====================================================
 
     function getReloadDelay() {
@@ -95,7 +114,7 @@
             CONFIG.maxMinutes
         );
 
-        // 后台页面增加延迟
+        // 后台标签页增加随机延迟
         if (document.hidden) {
 
             minutes += rand(
@@ -109,8 +128,10 @@
 
             const hour = new Date().getHours();
 
+            // 凌晨 2~7 点
             if (hour >= 2 && hour <= 7) {
 
+                // 35% 概率暂停
                 if (Math.random() < 0.35) {
 
                     const extra = rand(15, 60);
@@ -124,7 +145,7 @@
             }
         }
 
-        // 抖动
+        // 随机抖动
         const jitter = randInt(
             -CONFIG.jitterSeconds,
             CONFIG.jitterSeconds
@@ -136,7 +157,53 @@
     }
 
     // =====================================================
-    // SAFETY
+    // HUMAN SCROLL
+    // =====================================================
+
+    function humanScroll() {
+
+        if (!CONFIG.enableRandomScroll) {
+            return;
+        }
+
+        const maxScroll =
+            document.body.scrollHeight - window.innerHeight;
+
+        if (maxScroll <= 0) {
+            return;
+        }
+
+        const target = randInt(0, maxScroll);
+
+        window.scrollTo({
+            top: target,
+            behavior: 'smooth'
+        });
+
+        log('Scroll to', target);
+    }
+
+    // =====================================================
+    // USER ACTIVITY CHECK
+    // =====================================================
+
+    function isUserTyping() {
+
+        const active = document.activeElement;
+
+        if (!active) {
+            return false;
+        }
+
+        return (
+            active.tagName === 'INPUT' ||
+            active.tagName === 'TEXTAREA' ||
+            active.isContentEditable
+        );
+    }
+
+    // =====================================================
+    // SAFETY CHECK
     // =====================================================
 
     function shouldReload() {
@@ -150,16 +217,7 @@
         }
 
         // 用户正在输入
-        const active = document.activeElement;
-
-        if (
-            active &&
-            (
-                active.tagName === 'INPUT' ||
-                active.tagName === 'TEXTAREA' ||
-                active.isContentEditable
-            )
-        ) {
+        if (isUserTyping()) {
 
             log('User typing');
 
@@ -175,16 +233,17 @@
 
     function reloadPage() {
 
-        // 更像真人行为的小延迟
-        const wait = randInt(1000, 8000);
+        // 刷新前随机等待
+        const wait = randInt(
+            CONFIG.reloadWaitMinSeconds,
+            CONFIG.reloadWaitMaxSeconds
+        ) * 1000;
 
         log(`Reload after ${wait / 1000}s`);
 
         setTimeout(() => {
 
-            // 某些站点缓存 aggressive
-            // 加时间戳避免假刷新
-
+            // 避免缓存假刷新
             const url = new URL(location.href);
 
             url.searchParams.set(
@@ -200,7 +259,7 @@
     }
 
     // =====================================================
-    // MAIN
+    // MAIN LOOP
     // =====================================================
 
     function scheduleReload() {
@@ -224,7 +283,6 @@
                     `Retry after ${retry / 1000}s`
                 );
 
-                // 这里只重新调度一次
                 setTimeout(scheduleReload, retry);
 
                 return;
@@ -232,8 +290,30 @@
 
             reloadPage();
 
-            // 下一轮
-            scheduleReload();
+        }, delay);
+    }
+
+    // =====================================================
+    // RANDOM SCROLL LOOP
+    // =====================================================
+
+    function scheduleScroll() {
+
+        const delay = randInt(
+            CONFIG.scrollCheckMinSeconds,
+            CONFIG.scrollCheckMaxSeconds
+        ) * 1000;
+
+        setTimeout(() => {
+
+            if (
+                Math.random() < CONFIG.scrollChance &&
+                !document.hidden
+            ) {
+                humanScroll();
+            }
+
+            scheduleScroll();
 
         }, delay);
     }
@@ -242,13 +322,20 @@
     // START
     // =====================================================
 
-    // 初始随机等待
-    const startupDelay = randInt(5, 30) * 1000;
+    const startupDelay = randInt(
+        CONFIG.startupMinSeconds,
+        CONFIG.startupMaxSeconds
+    ) * 1000;
 
     log(
         `Startup after ${startupDelay / 1000}s`
     );
 
-    setTimeout(scheduleReload, startupDelay);
+    setTimeout(() => {
+
+        scheduleReload();
+        scheduleScroll();
+
+    }, startupDelay);
 
 })();
