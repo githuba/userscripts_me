@@ -35,8 +35,8 @@
     const CONFIG = {
 
         // 基础刷新时间（分钟）
-        minMinutes: 2,
-        maxMinutes: 5,
+        minMinutes: 1,
+        maxMinutes: 2,
 
         // 页面隐藏时额外延迟（分钟）
         hiddenExtraMinutes: 2,
