@@ -5,8 +5,6 @@
 // @description  Smart random auto reload with human-like behavior
 // @author       githuba
 // @run-at       document-end
-
-// ===== Sites =====
 // @match        https://*.tgfcer.com/*
 // @match        http://bbs.weibufengge.com/forum.php?mod=forumdisplay*
 // @match        http://bbs.weibufengge.com:88/forum.php?mod=forumdisplay*
