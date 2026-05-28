@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto Reload Random Enhanced
 // @namespace    https://github.com/githuba/userscripts_me
-// @version      4.2
+// @version      4.3
 // @description  Smart random auto reload with human-like behavior
 // @author       githuba
 // @run-at       document-end
